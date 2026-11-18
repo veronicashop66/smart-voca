@@ -134,6 +134,34 @@ test('모든 단어를 맞히면 세션이 끝나고 재출제가 남지 않는�
   assert.equal(s.answered, count);
 });
 
+test('오답 선택지는 정답과 뜻을 하나라도 공유하지 않는다', () => {
+  const split = (m) => m.split(',').map((s) => s.trim());
+  const session = createSession(VOCAB_WORDS, { rng: seeded(21) });
+  let q;
+  let count = 0;
+  while ((q = session.next()) && count < 300) {
+    const correctSenses = split(q.options[q.correctIndex]);
+    q.options.forEach((opt, i) => {
+      if (i === q.correctIndex) return;
+      const shared = split(opt).filter((s) => correctSenses.includes(s));
+      assert.deepEqual(shared, [], `${q.word}: 오답 "${opt}"이 정답과 뜻이 겹침`);
+    });
+    session.answer(q.correctIndex);
+    count++;
+  }
+  assert.ok(count >= VOCAB_WORDS.length, '모든 단어가 출제되지 않음');
+});
+
+test('오답 후보가 부족한 데이터는 오류를 낸다', () => {
+  const words = [
+    { word: 'a', meaning: '가, 나', examples: ['a b', 'a c'] },
+    { word: 'b', meaning: '가', examples: ['b x', 'b y'] },
+    { word: 'c', meaning: '다', examples: ['c x', 'c y'] },
+    { word: 'd', meaning: '라', examples: ['d x', 'd y'] },
+  ];
+  assert.throws(() => createSession(words), /오답 후보가 부족/);
+});
+
 test('잘못된 입력은 오류를 낸다', () => {
   assert.throws(() => createSession(VOCAB_WORDS.slice(0, 2)), /최소 4개/);
   assert.throws(

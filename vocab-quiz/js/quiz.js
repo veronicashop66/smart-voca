@@ -7,6 +7,7 @@
 // - 같은 시점에 재출제 대상이 여럿이면 그중 랜덤하게 고릅니다.
 // - 재출제 때는 이전에 보여주지 않은 다른 예문을 씁니다.
 // - 맞출 때까지 계속 재출제됩니다.
+// - 오답 선택지는 정답과 뜻을 하나라도 공유하지 않는 단어에서 고릅니다. (예: 정답 '변경하다'와 '변경하다'를 가진 단어는 제외)
 
 (function (root, factory) {
   const api = factory();
@@ -28,6 +29,21 @@
     return a;
   }
 
+  // 뜻 문자열을 쉼표 기준 개별 뜻 목록으로 나눕니다. ('분명한, 명백한' → ['분명한', '명백한'])
+  function senseList(meaning) {
+    return meaning.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  // 오답 후보: 정답과 뜻을 하나라도 공유하지 않는 다른 단어의 뜻 (정답과 겹치면 정답이 둘이 되므로 제외)
+  function distractorCandidates(words, index) {
+    const correctSenses = new Set(senseList(words[index].meaning));
+    return words
+      .map((_, k) => k)
+      .filter((k) => k !== index)
+      .map((k) => words[k].meaning)
+      .filter((m) => !senseList(m).some((s) => correctSenses.has(s)));
+  }
+
   function validateWords(words, choiceCount) {
     if (!Array.isArray(words) || words.length < choiceCount) {
       throw new Error(`단어는 최소 ${choiceCount}개 필요합니다.`);
@@ -42,6 +58,11 @@
         throw new Error(`뜻이 중복됩니다: "${w.meaning}"`);
       }
       meanings.add(w.meaning);
+    });
+    words.forEach((w, i) => {
+      if (distractorCandidates(words, i).length < choiceCount - 1) {
+        throw new Error(`"${w.word}"의 오답 후보가 부족합니다 (뜻이 겹치는 단어가 너무 많음).`);
+      }
     });
   }
 
@@ -78,11 +99,7 @@
 
     function buildChoices(index) {
       const correct = words[index].meaning;
-      const others = words
-        .map((w, k) => k)
-        .filter((k) => k !== index)
-        .map((k) => words[k].meaning);
-      const distractors = shuffle(others, rng).slice(0, choiceCount - 1);
+      const distractors = shuffle(distractorCandidates(words, index), rng).slice(0, choiceCount - 1);
       const options = shuffle([correct, ...distractors], rng);
       return { options, correctIndex: options.indexOf(correct) };
     }
