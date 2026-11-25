@@ -31,7 +31,21 @@ function currentTab() {
 function renderNav() {
   const active = currentTab();
   const links = Object.entries(VIEWS).map(([key, view]) =>
-    h('a', { href: `#${key}`, class: key === active ? 'active' : '' }, view.label),
+    // 같은 탭을 다시 누르면 해시가 바뀌지 않으므로 직접 다시 그린다.
+    h(
+      'a',
+      {
+        href: `#${key}`,
+        class: key === active ? 'active' : '',
+        onclick: (event) => {
+          if (location.hash === `#${key}`) {
+            event.preventDefault();
+            route();
+          }
+        },
+      },
+      view.label,
+    ),
   );
   document.getElementById('nav').replaceChildren(...links);
   document.getElementById('who').textContent = state.user.isGuest ? '게스트 (로그인 전)' : `${state.user.username} 님`;

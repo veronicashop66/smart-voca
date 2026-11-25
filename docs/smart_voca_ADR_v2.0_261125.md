@@ -66,16 +66,19 @@
 - **결정**
   - 비밀번호는 `node:crypto`의 `scrypt`와 무작위 salt로 해시하여 저장한다.
   - 로그인 시 무작위 세션 토큰을 발급하고 `HttpOnly` 쿠키로 보낸다. 세션은 DB `sessions` 테이블에 저장한다.
-  - 세션 키 같은 비밀값은 환경변수로 받는다. 기본값은 두지 않는다 (VOCA-NFR-004). 세션 토큰은 무작위 값이라 별도 비밀 키는 필요 없다.
+  - 세션 키는 환경변수 `SECRET_KEY`로 받는다 (VOCA-NFR-004). 없으면 서버 시작 때 무작위로 만든다. 재시작하면 로그인이 풀린다.
+  - DB `sessions` 테이블에는 세션 토큰 자체가 아니라 `SECRET_KEY`로 만든 HMAC-SHA256 값만 저장한다. DB가 새도 쿠키를 만들 수 없다.
+- **정정 (2026-11-25)**: 초안의 "세션 토큰은 무작위라 비밀 키가 필요 없다"는 문구를 위 내용으로 바꿨다. 구현은 `SECRET_KEY`와 HMAC 저장을 따른다.
 
 ## ADR-011: Docker 이미지와 SQLite 경로
 
-- **상태**: 승인 (2026-11-25, 세부 규칙은 원문 확인 필요)
+- **상태**: 승인 (2026-11-25, 정정 반영). 조건 원문은 `ai-agent/uploads/04_Dockerfile 프롬프트.md`
 - **결정**
-  - 베이스 이미지 `node:24-alpine`, 실행 사용자 UID 10001, 포트 8080.
-  - DB 경로는 환경변수 `DB_PATH`로 받고 기본값은 `/data/voca.db`로 둔다.
+  - 베이스 이미지 `node:24.11.0-slim` (버전 고정, slim 계열, latest 금지). 실행 사용자 UID 10001, 포트 8080.
+  - DB 경로는 환경변수 `DB_PATH`로 받고 기본값은 `/data/voca.db`로 둔다. `/data` 소유자는 10001.
   - 쓰기는 `/data`와 `/tmp`에만 한다.
-- **미확인 사항**: 「Dockerfile 구성」 문서의 R-01~R-10과 `.github/workflows/docker-check.yml`은 `ai-agent/uploads/`에 없다. 원문을 받은 뒤 대조한다.
+- **정정 (2026-11-25)**: 초안의 `node:24-alpine`을 `node:24.11.0-slim`으로 바꿨다. 규칙 조건 1(slim, 버전 태그)에 맞추기 위해서다. 「Dockerfile 구성」의 R-01~R-10은 `04_Dockerfile 프롬프트.md`의 조건 1~9로 대조했다.
+- **미확인 사항**: `.github/workflows/docker-check.yml`은 `ai-agent/uploads/`에 없다. 학교 파일을 리포에 직접 넣어야 한다. `cap-drop ALL`은 서버 실행 옵션이다.
 - **앱 주소**: 서버가 `/2026/voca-<학번>/` 아래로 옮겨 주므로 앱은 상대 경로만 쓴다 (VOCA-SUB-033).
 
 ---
@@ -83,3 +86,5 @@
 ## 변경 이력
 
 - 2026-11-25: 웹 앱 전환 결정 ADR-006~011 작성. ADR-001~003은 대체됨 처리.
+
+- 2026-11-25: ADR-010 세션 키(SECRET_KEY, HMAC 저장)와 ADR-011 베이스 이미지(node:24.11.0-slim) 정정.
