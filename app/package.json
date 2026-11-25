@@ -1,0 +1,14 @@
+{
+  "name": "smart-voca",
+  "version": "2.0.0",
+  "description": "수능 영단어 암기·시험·학습 통계 웹 앱",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/logic.test.js test/api.test.js"
+  }
+}

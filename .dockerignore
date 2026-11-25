@@ -1,0 +1,27 @@
+# 버전 관리·에디터·환경 설정
+.git
+.gitattributes
+.claude
+.vscode
+.idea
+.env
+.env.*
+
+# 문서와 작업 기록 (이미지에 필요 없음)
+ai-agent
+docs
+README.md
+CLAUDE.md
+
+# 의존성·파이썬 잔여물 (Node 앱이지만 규칙에 따라 제외)
+node_modules
+__pycache__
+.venv
+*.pyc
+
+# 로컬 DB와 로그
+**/data
+*.db
+*.db-wal
+*.db-shm
+*.log
