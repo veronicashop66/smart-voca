@@ -5,46 +5,63 @@ Claude Code가 이 프로젝트에서 따라야 할 운용 지침입니다. 교�
 ## 프로젝트 정보
 
 - **프로젝트명**: smart-voca / **시스템명**: 스마트 보카
-- **한 줄 설명**: 수능 영단어를 예문과 함께 학습하고, 틀린 단어를 반복 출제하는 영단어 연습장
+- **한 줄 설명**: 수능 영단어를 CSV로 등록해 날마다 외우고, 시험을 보고, 학습 통계를 확인하는 단어장 웹 앱
 - **작성자**: 240305 김현빈
 - **리포지토리**: https://github.com/veronicashop66/smart-voca
-- **상태**: 요구사항 정리 전 (분석/설계 단계 이슈 #1 진행 중, 퀴즈 1차 구현 완료)
+- **상태**: 요구사항 명세 v2.0 승인, 웹 앱 1차 구현 완료 (테스트 23개 통과). 남은 일: 브라우저 수동 확인, Docker 빌드 확인, 서브 경로 배포 확인
 
 ### 기술 스택
 
 | 레이어 | 기술 |
 |--------|------|
-| 언어 | JavaScript (ES2015+), HTML, CSS |
-| 테스트 | Node.js 내장 `node:test` (Node 18 이상) |
+| 언어 | JavaScript (ES2015+, 서버는 CommonJS, 화면은 ES 모듈), HTML, CSS |
+| 서버 | Node.js 내장 `http` 모듈 (외부 프레임워크 없음, ADR-007) |
+| DB | SQLite, Node.js 내장 `node:sqlite` (Node 22.13 이상, 권장 24) |
+| 테스트 | Node.js 내장 `node:test` |
 | 프론트엔드 | 순수 HTML/JS (빌드 도구·프레임워크 없음) |
-| DB | 없음 (현재 단계) |
-| 실행 환경 | 브라우저에서 `vocab-quiz/index.html` 열기 / 로컬 Node |
+| 배포 | Docker (`node:24.11.0-slim`), 학교 서버 `/2026/voca-<학번>/` 아래 서브 경로 |
 
 ## 상위 정책 참조
 
 - 산출물 기준 방법론: **`docs/개발방법론__AIsw.md`** (AI 소프트웨어 개발방법론, SDLC 산출물 §2, AI 에이전트 지침 §3, 파일 관리 §4)
+- 요구사항 기준: **`docs/smart_voca_Requirement_Spec_v2.0_261125.md`** (소프트웨어 요건 v1.1 반영)
+- 아키텍처 결정: **`docs/smart_voca_ADR_v2.0_261125.md`** (ADR-006~011)
+- 배포 규칙 원문: **`ai-agent/uploads/04_Dockerfile 프롬프트.md`** (공통 조건 1~9)
 
 ## 작업 공간 구조
 
 ```
 smart-voca/
 ├── CLAUDE.md                   # 본 문서 — Claude 운용 지침
-├── README.md                   # 프로젝트 소개
+├── README.md                   # 프로젝트 소개, 실행 방법, 구현한 FR ID
+├── Dockerfile                  # 학교 서버용 이미지 (조건 1~9)
+├── .dockerignore / .gitattributes
 ├── docs/                       # 승인된 최종 산출물 (Claude가 직접 생성하지 않음)
-│   └── 개발방법론__AIsw.md      # 산출물 작성 기준 방법론
+│   ├── 개발방법론__AIsw.md
+│   ├── smart_voca_Requirement_Spec_v2.0_261125.md
+│   ├── smart_voca_ADR_v2.0_261125.md
+│   └── old/                    # 이전 버전 (v1.0 명세 등)
 ├── ai-agent/
 │   ├── claude/                 # Claude 작업 디렉터리 (초안, 검토 요청, 진행 일지)
 │   │   └── 진행일지.md
-│   ├── uploads/                # 외부 참고자료 (교수님 지침 등) — Claude는 수정하지 않음
+│   ├── uploads/                # 외부 참고자료 (교수님 지침, 요건, 배포 프롬프트, 샘플 CSV) — Claude는 수정하지 않음
 │   └── scripts/                # 프로젝트 전용 스크립트 (필요 시 생성)
-└── vocab-quiz/                 # 구현 코드 (퀴즈 로직·화면·테스트)
-    ├── index.html
-    ├── js/ (quiz.js, words.js, app.js)
-    └── test/quiz.test.js
+└── app/                        # 구현 코드
+    ├── server.js               # 서버 진입점 (PORT, HOST, DB_PATH, SECRET_KEY)
+    ├── package.json            # 외부 의존성 없음
+    ├── src/
+    │   ├── app.js              # 라우팅 (API와 정적 파일)
+    │   ├── db.js               # SQLite 연결과 테이블 생성
+    │   ├── http.js             # JSON 응답, 본문 읽기, 쿠키, 정적 파일
+    │   ├── logic/              # 순수 로직 (csv, text, quiz, study, random)
+    │   ├── services/           # 계정·세션(accounts), 설정(settings)
+    │   └── api/                # API 모듈 (auth, words, study, quiz, stats)
+    ├── public/                 # 화면 (index.html, style.css, js/ 와 js/views/)
+    └── test/                   # logic.test.js, api.test.js
 ```
 
 - `ai-agent/uploads/`는 현재 Git에 추적되지 않습니다. 참고자료를 커밋할지는 사용자가 정합니다.
-- `data/`, `logs/`, `backups/`, `docker-compose.yml`은 필요해지는 시점에 추가합니다.
+- `data/`(로컬 DB), `logs/`, `backups/`는 `.gitignore`·`.dockerignore`로 제외합니다.
 
 ## 수행할 역할
 
@@ -85,7 +102,7 @@ smart-voca/
 ## 문서 관리 규칙
 
 1. **내용의 구체성**: 계획서는 파일명·함수명 수준까지 명시합니다. 소스코드는 문서에 붙여넣지 않습니다.
-2. **파일명 규칙**: `{Project_Name}_{EN_Name}_vX.X_YYMMDD.md` (예: `smart_voca_Requirement_Spec_v1.0_261111.md`)
+2. **파일명 규칙**: `{Project_Name}_{EN_Name}_vX.X_YYMMDD.md` (예: `smart_voca_Requirement_Spec_v2.0_261125.md`)
    - 방법론 문서 `개발방법론__AIsw.md`는 예외로 이름을 유지합니다.
 3. **디렉터리명**: 참고자료는 날짜 없이 단순한 이름, 작업 기록 묶음은 `yymmdd_주제/` (예: `261111_요구사항정리/`).
 4. **문서 헤더**: 모든 산출물 문서 상단에 아래 형식을 씁니다.
@@ -103,7 +120,7 @@ smart-voca/
 
 5. **디렉터리별 용도**
    - **`docs/`**: 승인된 산출물 저장소. Claude는 직접 생성·수정하지 않고, 승인 후 `ai-agent/claude/`에서 복제합니다.
-   - **`docs/old/`**: 이전 버전 보관. 버전 업 절차는 원본을 `docs/old/`로 옮기고, 그 이름으로 새 버전을 만든 뒤 내용을 고칩니다. 사용자가 "버전 올리자"라고 하면 버전을 올립니다. (`docs/old/`는 첫 버전 업데이트 때 만듭니다.)
+   - **`docs/old/`**: 이전 버전 보관. 버전 업 절차는 원본을 `docs/old/`로 옮기고, 그 이름으로 새 버전을 만든 뒤 내용을 고칩니다. 사용자가 "버전 올리자"라고 하면 버전을 올립니다.
    - **`ai-agent/claude/`**: 검토·작업계획·일지 등 작업 중 문서를 둡니다.
    - **`ai-agent/uploads/`**: 외부 참고자료를 둡니다. Claude는 수정하지 않습니다.
 6. **결정 기록**: 기술 선택, 구조 변경, 방침 전환 등 되돌아볼 가능성이 있는 결정은 ADR에 `배경 / 대안 / 결정 근거` 형식으로 남깁니다. 코드 주석이나 커밋 메시지에만 남기지 않습니다.
@@ -116,22 +133,22 @@ smart-voca/
 2. **파일 최상단 헤더 필수**: 작성일, 파일 위치, 목적을 적습니다. JavaScript 예시는 다음과 같습니다.
 
    ```javascript
-   // 2026-11-11 - smart-voca - 퀴즈 로직 (재출제 규칙 포함)
-   // 파일 위치: vocab-quiz/js/quiz.js
+   // 2026-11-25 - smart-voca - 시험 출제·채점 순수 로직 (FR-021~025)
+   // 파일 위치: app/src/logic/quiz.js
    ```
 
-   > 현재 `vocab-quiz/` 파일 중 헤더가 없는 파일이 있습니다. 다음 수정 때 추가합니다.
-
-3. **비밀정보 금지**: API 키·비밀번호·접속정보는 코드에 쓰지 않습니다. `.env`에 두고 `.env.example`만 커밋합니다.
+3. **비밀정보 금지**: API 키·비밀번호·접속정보·세션 키는 코드나 이미지에 쓰지 않습니다. 세션 키는 환경변수 `SECRET_KEY`로 받고, 없으면 실행 시 무작위로 만듭니다.
 4. **개인정보 금지**: 실명·학번·연락처가 들어간 데이터는 익명화하거나 `.gitignore`로 제외합니다.
 5. **이름은 의미가 드러나게**: `a`, `tmp`, `data2` 대신 의미 있는 이름을 씁니다.
+6. **서브 경로 배포 규칙 (화면 코드)**: 주소는 `/login`처럼 `/`로 시작하거나 `login`처럼 상대 경로로 씁니다. `http://localhost:8080` 같은 호스트는 쓰지 않습니다. HTML 속성은 따옴표로 감쌉니다. JS에서는 `fetch("/api/words")`처럼 호출하는 자리에 주소 문자열을 그대로 씁니다. `const API = "/api"`처럼 앞부분을 변수로 빼지 않습니다.
 
 ## 테스트 및 실행
 
-- **테스트**: `node --test vocab-quiz/test/quiz.test.js` (Node 18 이상, 설치 불필요)
-- **실행**: `vocab-quiz/index.html`을 브라우저로 엽니다. 별도 서버는 필요하지 않습니다.
-- **배포**: 아직 없습니다. 정적 파일이므로 필요해지면 ADR로 방식을 정합니다.
-- **테스트 정의서**: 방법론에 따라 BDD 시나리오(Given/When/Then)로 작성합니다. 현재는 단위 테스트만 있습니다.
+- **테스트**: `cd app && npm test` (Node 22.13 이상, 설치 불필요). 현재 단위 테스트 `logic.test.js`와 API 통합 테스트 `api.test.js`, 총 23개.
+- **실행**: `cd app && npm start` 후 `http://localhost:8080`. 환경변수 `PORT`, `HOST`, `DB_PATH`(기본 `app/data/voca.db`), `SECRET_KEY`(선택).
+- **이미지 빌드**: 리포 루트에서 `docker build .` (Dockerfile은 `app/`만 복사). 이 PC에는 Docker가 없어 빌드는 아직 확인하지 않았습니다.
+- **배포**: 학교 서버 `/2026/voca-<학번>/` 아래에 올립니다. 서버가 주소를 바꿔 주므로 위 서브 경로 규칙을 지킵니다. 점검 워크플로 `.github/workflows/docker-check.yml`은 학교에서 받은 파일을 그대로 씁니다 (만들거나 고치지 않음).
+- **테스트 정의서**: 방법론에 따라 BDD 시나리오(Given/When/Then)로 작성합니다 (`ai-agent/claude/smart_voca_Test_Spec_v0.1_261125.md`, 검토 대기).
 
 ## 자동 실행 / 승인 필요
 
@@ -152,7 +169,7 @@ smart-voca/
 ## Git 규칙
 
 1. **기본 브랜치**: `main`. 모든 작업은 `main`에서 하며, 브랜치를 새로 만들지 않습니다. 저장소는 한 명이 작업하므로 브랜치는 `main` 하나만 둡니다.
-2. **커밋 메시지**: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`). 이슈 번호가 있으면 포함합니다. 예: `feat: 재출제 규칙 구현 (#1)`
+2. **커밋 메시지**: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`). 이슈 번호가 있으면 포함합니다. 예: `feat: 시험 채점 구현 (#1)`
 3. **커밋은 잘게, 자주**: 한 커밋에는 한 가지 일만 담습니다.
 4. **커밋 메시지 끝**: 아래 줄을 붙입니다.
    `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`
@@ -164,7 +181,7 @@ smart-voca/
 - **제목 형식**: `[Type] 간결한 제목` (Type ∈ Bug, Feature, Refactor, Docs)
 - **본문 형식**: `## 문제` / `## 영향 범위` / `## 기대 결과`
 - **작성 스타일**: 간결하고 직설적으로 씁니다.
-- **진행 상황**: 주요 진행은 해당 이슈에 댓글로 남깁니다. 현재 관련 이슈는 #1 (분석/설계 단계)입니다.
+- **진행 상황**: 주요 진행은 해당 이슈에 댓글로 남깁니다. 현재 관련 이슈는 #1입니다.
 
 ## 채팅 관리
 
@@ -175,5 +192,7 @@ smart-voca/
 ## 프로젝트 특화 메모
 
 - 방법론 문서는 파일명 규칙의 예외로 두었습니다 (`docs/개발방법론__AIsw.md`).
-- 퀴즈 규칙: 틀린 단어는 최소 8문제 뒤, 0~4문제 무작위 추가 간격으로 재출제합니다. 세션 끝에 신규 단어가 없으면 8문제 간격을 채우지 못할 수 있습니다.
-- 단어 데이터(`vocab-quiz/js/words.js`)는 수능 빈출 64개이며, 예문은 단어당 2개 이상이어야 합니다.
+- 암기 규칙 (ADR-008): 단어 id 순서로 하루 학습량(기본 20)씩 일차를 나눕니다. 복습 단어는 하루 목록의 복습 비율(기본 30%)만큼, 직전 일차 단어 → 자주 틀린 단어 → 이미 외운 다른 단어 순서로 채웁니다.
+- 시험 규칙 (ADR-008·009): 시험 본 적 없는 단어 가중치 3, 틀린 적 있는 단어 2, 나머지 1로 무작위 추출합니다. 형식은 단답형과 4지선다이며, 보기는 정답 뜻과 뜻 조각이 겹치지 않게 만듭니다.
+- 단어 데이터는 저장소에 넣지 않습니다. 수업 샘플 `ai-agent/uploads/단어사전_샘플.csv`(2,000행)를 앱의 단어 탭에서 가져옵니다. 같은 영단어는 한 번만 저장하고 뜻은 `;`로 합칩니다.
+- 기존 퀴즈(`vocab-quiz/`, 재출제 규칙, 단어 64개)는 웹 앱으로 대체했습니다 (ADR-006). git 이력에만 남아 있습니다.
